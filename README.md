@@ -14,12 +14,12 @@ A personal engineering publication: long-form articles, series, topics, dated no
 | 2     | Articles list, article detail, series, topics, projects and About pages | **Built**                                                           |
 | 3     | Private admin panel: GitHub sign-in, articles, topics, series           | **Built** (partial, see [Admin panel](#admin-panel))                |
 | 4     | MongoDB Atlas store behind the same interface                           | **Built** (see [Where the content lives](#where-the-content-lives)) |
-| 5     | SEO: metadata, structured data, sitemap, robots, redirects              | Not started                                                         |
+| 5     | SEO: metadata, structured data, sitemap, robots, RSS, social images     | **Built** (see [SEO](#seo))                                         |
 | 6     | Testing and deployment (Vercel + Atlas)                                 | Not started                                                         |
 
 The admin panel does **not** yet include: editing notes, projects and the About page, and per-article SEO fields. Also built since: a light/dark toggle in the navbar, Cloudinary image upload in the article editor, and the MongoDB store.
 
-Still absent on purpose: SEO metadata (a page title per page, `noindex` on `/design-system` and on `/admin` are the only exceptions).
+Redirects are not needed yet: slugs cannot change after creation, so no address moves. When that changes, add them in `next.config.ts`.
 
 ## Stack
 
@@ -63,18 +63,19 @@ If a change to `globals.css` does not show up in `npm run dev`, restart the dev 
 
 The public site needs none. The admin panel needs these in `.env.local` (copy [`.env.example`](.env.example); `.env.local` is git-ignored):
 
-| Variable                                                               | What it is                                                                                                                             |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `AUTH_SECRET`                                                          | Random string that signs session cookies. `openssl rand -base64 32`                                                                    |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`                                | A GitHub OAuth app: GitHub → Settings → Developer settings → OAuth Apps. Callback URL `http://localhost:3000/api/auth/callback/github` |
-| `ADMIN_GITHUB_ID`                                                      | The **numeric id** of the one GitHub account allowed in. Get it from `https://api.github.com/users/YOUR-LOGIN` (the `id` field)        |
-| `AUTH_URL`                                                             | Needed when you run `npm run build && npm run start` yourself, e.g. `http://localhost:3000`. Not needed in `npm run dev`               |
-| `MONGODB_URI`                                                          | Atlas connection string; includes the database user and password. Without it the app uses a local JSON file (development only)         |
-| `MONGODB_DB` (optional)                                                | Database name, default `blog`                                                                                                          |
-| `MONGODB_SEED_SAMPLE` (optional)                                       | `true` loads the placeholder sample content once, into an **empty** database                                                           |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Cloudinary dashboard, API keys. Image upload stays disabled until all three are set                                                    |
-| `CLOUDINARY_FOLDER` (optional)                                         | Upload folder, default `blog`                                                                                                          |
-| `CONTENT_DATA_DIR` (optional)                                          | Where the local-file fallback keeps `content.json`. Default `./.data`                                                                  |
+| Variable                                                               | What it is                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_SECRET`                                                          | Random string that signs session cookies. `openssl rand -base64 32`                                                                                                                                                                          |
+| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`                                | A GitHub OAuth app: GitHub → Settings → Developer settings → OAuth Apps. Callback URL `http://localhost:3000/api/auth/callback/github`                                                                                                       |
+| `ADMIN_GITHUB_ID`                                                      | The **numeric id** of the one GitHub account allowed in. Get it from `https://api.github.com/users/YOUR-LOGIN` (the `id` field)                                                                                                              |
+| `AUTH_URL`                                                             | Needed when you run `npm run build && npm run start` yourself, e.g. `http://localhost:3000`. Not needed in `npm run dev`                                                                                                                     |
+| `MONGODB_URI`                                                          | Atlas connection string; includes the database user and password. Without it the app uses a local JSON file (development only)                                                                                                               |
+| `MONGODB_DB` (optional)                                                | Database name, default `blog`                                                                                                                                                                                                                |
+| `MONGODB_SEED_SAMPLE` (optional)                                       | `true` loads the placeholder sample content once, into an **empty** database                                                                                                                                                                 |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Cloudinary dashboard, API keys. Image upload stays disabled until all three are set                                                                                                                                                          |
+| `SITE_URL`                                                             | The public origin, e.g. `https://example.com`. Used for canonical links, the sitemap, the feed and social images. Set it before building for production. On Vercel the production domain is used if unset; otherwise `http://localhost:3000` |
+| `CLOUDINARY_FOLDER` (optional)                                         | Upload folder, default `blog`                                                                                                                                                                                                                |
+| `CONTENT_DATA_DIR` (optional)                                          | Where the local-file fallback keeps `content.json`. Default `./.data`                                                                                                                                                                        |
 
 A `.env.local` was created for development with a generated `AUTH_SECRET` and the **placeholder** `ADMIN_GITHUB_ID=1000001`. Replace it with your own id, and fill in the two `AUTH_GITHUB_*` values, before you try to sign in. Until both GitHub values are set the login page says sign-in is not configured. If `ADMIN_GITHUB_ID` is missing or not a number, **nobody** can sign in.
 
@@ -94,7 +95,7 @@ A `.env.local` was created for development with a generated `AUTH_SECRET` and th
 | `/design-system`    | Tokens and every component, in light and dark. Marked `noindex`.                              | Static                           |
 | any unknown address | 404 page (`not-found.tsx`); unknown article, series or topic slugs return a real 404 status   | -                                |
 
-`/feed.xml` (the footer's RSS link) does not exist yet.
+Also: `/feed.xml` (RSS), `/sitemap.xml`, `/robots.txt`, `/opengraph-image` and `/og/articles/[slug]` (social preview images). See [SEO](#seo).
 
 Admin routes (all private; see [Admin panel](#admin-panel)). Every one is dynamic, `noindex`, and answers an anonymous visitor with a redirect to `/admin/login`:
 
@@ -297,6 +298,19 @@ Every read happens on the server, in `src/lib/content.ts` (public, published art
 
 The article editor has an **Insert an image** panel: choose a JPG, PNG, WebP, GIF or AVIF (up to 8 MB), write alt text (required) and an optional caption, then **Upload and insert**. The browser asks a server action for a signature (admin only), uploads straight to Cloudinary, and the Markdown `![alt](url "caption")` is inserted at the cursor. The API secret never leaves the server; the signature fixes the folder and the allowed formats, and the URL carries `f_auto,q_auto` so Cloudinary serves the best format. A caption becomes a `figure` caption on the public page. Without the three `CLOUDINARY_*` variables the panel says upload is not configured.
 
+## SEO
+
+- **Titles and descriptions**: every page has a title (`%s | yourname.dev`); articles use their standfirst or summary as the description, series use their summary, topics a plain "Articles about X." Pages without their own description use the site description.
+- **Canonical addresses** on every page. `/articles` with any query (`?q=`, `?tag=`, `?topic=`, `?sort=`, `?page=`) is `noindex, follow` and points at `/articles`; a topic with no articles is `noindex`.
+- **Open Graph and Twitter**: article pages declare type `article` with published and modified times, section and tags. Social images are generated: `/opengraph-image` for the site and `/og/articles/<slug>` per article (title on the design's paper colours, rendered with `next/og`; the default font only, since the site fonts are not loaded into it). A draft or unknown slug returns 404 there.
+- **Structured data (JSON-LD)**: `WebSite` on Home; `BlogPosting` plus `BreadcrumbList` on articles, with `isPartOf` for series parts. `<` is escaped so article text cannot close the script tag. The `author` is **left out while the author name is still the "[Your Name]" placeholder** (`src/config/site.ts`), so nothing false is published.
+- **`/sitemap.xml`**: static pages, published articles (with last-modified), series, and topics that have articles. Never drafts.
+- **`/robots.txt`**: allows everything except `/admin`, `/api/` and `/design-system`, and points to the sitemap. On a Vercel **preview** deployment it disallows everything and every page is `noindex`.
+- **`/feed.xml`**: RSS 2.0, the 20 newest published articles, linked from every page's `<head>` and from the footer.
+- Saving anything in the admin panel refreshes the sitemap and the feed along with the pages.
+
+Before launch: set `SITE_URL`, replace the placeholder author, site name and sample content (the footer's sample notice says the content is sample), and check the result with Google Search Console and a structured-data validator, neither of which I ran.
+
 ## Accessibility
 
 - Semantic landmarks, one `h1`, ordered headings, a "Skip to content" link (visible only on focus).
@@ -347,7 +361,7 @@ Admin panel (set up `.env.local` first, see [Environment variables](#environment
 ## Known limitations
 
 - **No mockup exists for** `/series` (index), `/topics`, `/topics/[slug]` and the 404 page. I composed them from existing components and tokens and added no new styles. Please review them.
-- `/feed.xml` (RSS) does not exist yet. GitHub and LinkedIn links are placeholders (`your-handle`, `your-profile`).
+- GitHub and LinkedIn links are placeholders (`your-handle`, `your-profile`).
 - Only one article has a body. The diagram is a hand-built placeholder for the later Mermaid step.
 - With 8 sample articles and 8 per page, the pager never shows by default (tested with a page size of 3).
 - The article contents list is hidden on screens narrower than 1024px; the other sidebar panels move below the text.
@@ -360,6 +374,8 @@ Admin panel (set up `.env.local` first, see [Environment variables](#environment
 - Verified in a browser: layout against the PDF (desktop), focus ring, copy buttons, search, sort, filters, reading progress, 404s, no horizontal scrolling at 375px, dark theme on the article page. Hover states were reviewed by reading the styles, not by moving a pointer over every element, and clipboard contents were not read back.
 - No automated test suite yet (phase 6). Verification so far is lint, typecheck, production build and manual checks.
 - `src/app/favicon.ico` is still the Next.js default.
+
+SEO limitations: the structured data and social images were checked by reading the generated output (tags, JSON parses, valid RSS XML, image served as PNG), not with Google's or Facebook's validators. Article text is not scanned for a word count or reading-level hints. Pages have no per-article custom title/description (the title and standfirst are used).
 
 Phase 3 limitations:
 

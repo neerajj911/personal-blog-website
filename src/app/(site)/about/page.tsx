@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/seo";
 import Link from "next/link";
 import { site } from "@/config/site";
 import { getAbout } from "@/lib/content";
@@ -6,7 +7,10 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { Panel } from "@/components/ui/Panel";
 import { TagChip } from "@/components/ui/TagChip";
 
-export const metadata: Metadata = { title: "About" };
+export const metadata: Metadata = {
+  title: "About",
+  alternates: alternatesFor("/about"),
+};
 
 export default async function AboutPage() {
   const about = await getAbout();

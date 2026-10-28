@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/seo";
 import { getSeriesList } from "@/lib/content";
 import { SeriesCard } from "@/components/content/SeriesCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 
-export const metadata: Metadata = { title: "Series" };
+export const metadata: Metadata = {
+  title: "Series",
+  alternates: alternatesFor("/series"),
+};
 
 export default async function SeriesIndexPage() {
   const series = await getSeriesList();

@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/seo";
 import { getProjects } from "@/lib/content";
 import { ProjectPanel } from "@/components/content/ProjectPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
 
-export const metadata: Metadata = { title: "Projects" };
+export const metadata: Metadata = {
+  title: "Projects",
+  alternates: alternatesFor("/projects"),
+};
 
 export default async function ProjectsPage() {
   const projects = await getProjects();

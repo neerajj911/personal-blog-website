@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/seo";
 import Link from "next/link";
 import { getTopics } from "@/lib/content";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TopicMarker } from "@/components/ui/TopicMarker";
 
-export const metadata: Metadata = { title: "Topics" };
+export const metadata: Metadata = {
+  title: "Topics",
+  alternates: alternatesFor("/topics"),
+};
 
 export default async function TopicsPage() {
   const topics = await getTopics();

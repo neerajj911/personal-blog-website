@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { site } from "@/config/site";
+import { absoluteUrl, alternatesFor } from "@/lib/seo";
+import { JsonLd } from "@/components/content/JsonLd";
 import {
   getLatestArticles,
   getNotes,
@@ -16,6 +19,8 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 
 const LATEST_COUNT = 5;
 
+export const metadata: Metadata = { alternates: alternatesFor("/") };
+
 export default async function HomePage() {
   const [latest, seriesList, topics, notes, projects] = await Promise.all([
     getLatestArticles(LATEST_COUNT),
@@ -28,6 +33,15 @@ export default async function HomePage() {
 
   return (
     <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: site.domain,
+          url: absoluteUrl("/"),
+          description: site.description,
+        }}
+      />
       <section className="page-container pt-18 pb-12">
         <p className="eyebrow">A technical journal</p>
         <h1 className="mt-4 max-w-[52rem] font-serif text-display font-bold text-ink">

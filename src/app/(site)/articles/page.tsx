@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/seo";
 import Link from "next/link";
 import {
   getArticles,
@@ -15,7 +16,18 @@ import { FilterPill } from "@/components/ui/FilterPill";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 
-export const metadata: Metadata = { title: "Articles" };
+export async function generateMetadata({
+  searchParams,
+}: PageProps<"/articles">): Promise<Metadata> {
+  const raw = await searchParams;
+  const filtered = Object.keys(raw).length > 0;
+  return {
+    title: "Articles",
+    alternates: alternatesFor("/articles"),
+    // /articles?q=... and the like duplicate the main list: keep them out of the index.
+    ...(filtered ? { robots: { index: false, follow: true } } : {}),
+  };
+}
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

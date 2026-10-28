@@ -161,6 +161,12 @@ export async function getLatestArticles(limit: number): Promise<ArticleListItem[
     .map((a) => toListItem(a, content));
 }
 
+/** Every published article, newest first. For the sitemap; lists use getArticles(). */
+export async function getAllArticles(): Promise<ArticleListItem[]> {
+  const content = await load();
+  return [...content.articles].sort(byDate("newest")).map((a) => toListItem(a, content));
+}
+
 export async function getArticle(slug: string): Promise<ArticleListItem | undefined> {
   const content = await load();
   const article = content.articles.find((a) => a.slug === slug);

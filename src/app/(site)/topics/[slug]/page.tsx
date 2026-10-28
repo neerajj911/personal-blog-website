@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/seo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArticles, getTopic, getTopics } from "@/lib/content";
@@ -11,7 +12,15 @@ export async function generateMetadata({
 }: PageProps<"/topics/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const topic = await getTopic(slug);
-  return topic ? { title: topic.name } : {};
+  return topic
+    ? {
+        title: topic.name,
+        description: `Articles about ${topic.name}.`,
+        alternates: alternatesFor(`/topics/${topic.slug}`),
+        // A topic with no articles is a thin page.
+        ...(topic.articleCount === 0 ? { robots: { index: false, follow: true } } : {}),
+      }
+    : {};
 }
 
 export async function generateStaticParams() {

@@ -27,6 +27,9 @@ import { renderMarkdown } from "@/lib/markdown";
 /** Everything the public site shows can change, so refresh all of it. */
 function refreshPublicSite() {
   revalidatePath("/", "layout");
+  // Route handlers are cached separately from pages.
+  revalidatePath("/sitemap.xml");
+  revalidatePath("/feed.xml");
 }
 
 function fields(formData: FormData): Record<string, string> {

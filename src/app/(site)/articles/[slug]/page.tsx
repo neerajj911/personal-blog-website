@@ -9,6 +9,8 @@ import {
 } from "@/lib/content";
 import { formatDate, formatReadingTime } from "@/lib/format";
 import { renderMarkdown } from "@/lib/markdown";
+import { absoluteUrl, authorName, alternatesFor } from "@/lib/seo";
+import { JsonLd } from "@/components/content/JsonLd";
 import { articlesHref } from "@/lib/urls";
 import { InSeriesPanel } from "@/components/content/InSeriesPanel";
 import { MarkAsRead } from "@/components/content/MarkAsRead";
@@ -31,7 +33,30 @@ export async function generateMetadata({
 }: PageProps<"/articles/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const found = await getArticle(slug);
-  return found ? { title: found.article.title } : {};
+  if (!found) return {};
+  const { article, topic } = found;
+  const path = `/articles/${article.slug}`;
+  const imagePath = `/og/articles/${article.slug}`;
+  const author = authorName();
+  return {
+    title: article.title,
+    description: article.subtitle ?? article.excerpt,
+    alternates: alternatesFor(path),
+    keywords: article.tags,
+    ...(author ? { authors: [{ name: author }] } : {}),
+    twitter: { images: [imagePath] },
+    openGraph: {
+      images: [{ url: imagePath, width: 1200, height: 630, alt: article.title }],
+      type: "article",
+      url: path,
+      title: article.title,
+      description: article.excerpt,
+      publishedTime: article.publishedAt,
+      modifiedTime: article.updatedAt ?? article.publishedAt,
+      section: topic.name,
+      tags: article.tags,
+    },
+  };
 }
 
 export default async function ArticlePage({ params }: PageProps<"/articles/[slug]">) {
@@ -68,8 +93,55 @@ export default async function ArticlePage({ params }: PageProps<"/articles/[slug
         { label: topic.shortName, href: articlesHref({ topic: topic.slug }) },
       ];
 
+  const url = absoluteUrl(`/articles/${article.slug}`);
+  const author = authorName();
+
   return (
     <article>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "BlogPosting",
+              headline: article.title,
+              description: article.excerpt,
+              url,
+              mainEntityOfPage: url,
+              image: absoluteUrl(`/og/articles/${article.slug}`),
+              datePublished: article.publishedAt,
+              dateModified: article.updatedAt ?? article.publishedAt,
+              keywords: article.tags.join(", "),
+              articleSection: topic.name,
+              inLanguage: "en",
+              ...(author ? { author: { "@type": "Person", name: author } } : {}),
+              ...(seriesContext
+                ? {
+                    isPartOf: {
+                      "@type": "CreativeWorkSeries",
+                      name: seriesContext.series.title,
+                      url: absoluteUrl(`/series/${seriesContext.series.slug}`),
+                    },
+                  }
+                : {}),
+            },
+            {
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                { label: "Home", href: "/" },
+                // Only crumbs that are links: "Part 3" is a label, not a page.
+                ...breadcrumbs.filter((crumb) => crumb.href),
+                { label: article.title },
+              ].map((crumb, index) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                name: crumb.label,
+                ...(crumb.href ? { item: absoluteUrl(crumb.href) } : {}),
+              })),
+            },
+          ],
+        }}
+      />
       <header className="page-container pt-8 pb-10">
         <Breadcrumb items={breadcrumbs} />
         {seriesContext ? (

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { alternatesFor } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import {
   countPublishedParts,
@@ -23,7 +24,13 @@ export async function generateMetadata({
 }: PageProps<"/series/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const series = await getSeries(slug);
-  return series ? { title: series.title } : {};
+  return series
+    ? {
+        title: series.title,
+        description: series.summary,
+        alternates: alternatesFor(`/series/${series.slug}`),
+      }
+    : {};
 }
 
 export default async function SeriesPage({ params }: PageProps<"/series/[slug]">) {
