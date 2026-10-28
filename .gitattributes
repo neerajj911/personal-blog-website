@@ -1,0 +1,2 @@
+# Keep line endings as LF on every OS, matching .prettierrc.json (endOfLine: lf).
+* text=auto eol=lf
